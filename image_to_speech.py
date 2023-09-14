@@ -73,7 +73,7 @@ def synthesize_text(text, target):
 
 
 client = vision.ImageAnnotatorClient()
-file_name = os.path.abspath("2.jpeg")
+file_name = os.path.abspath("wakeupcat.jpeg")
 with io.open(file_name, "rb") as image_file:
     content = image_file.read()
 

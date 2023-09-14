@@ -1,3 +1,6 @@
 .vscode/*
 bin/*
 lib/*
+MyApp/.expo/*
+MyApp/assets/*
+MyApp/node_modules/*
