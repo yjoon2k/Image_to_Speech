@@ -1,9 +1,10 @@
+import json
+import base64
 from google.cloud import vision
 from google.cloud import translate
 from google.cloud import texttospeech
 import io
 import os
-import sys
 
 
 def translate_text(target: str, text: str) -> dict:
@@ -13,6 +14,10 @@ def translate_text(target: str, text: str) -> dict:
     if isinstance(text, bytes):
         text = text.decode("utf-8")
     result = translate_client.translate(text, target_language=target)
+
+    """print("Text: {}".format(result["input"]))
+    print("Translation: {}".format(result["translatedText"]))
+    print("Detected source language: {}".format(result["detectedSourceLanguage"]))"""
     if target == "ko":
         synthesize_text(result["translatedText"], "ko-KR")
     elif target == "en":
@@ -40,8 +45,14 @@ def detect_language(text):
 
 
 def synthesize_text(text, target):
+    """Synthesizes speech from the input string of text."""
+
     client = texttospeech.TextToSpeechClient()
+
     input_text = texttospeech.SynthesisInput(text=text)
+
+    # Note: the voice can also be specified by name.
+    # Names of voices can be retrieved with client.list_voices().
     voice = texttospeech.VoiceSelectionParams(
         language_code=target,
         name=target + "-Standard-C",
@@ -62,17 +73,18 @@ def synthesize_text(text, target):
         print('Audio content written to file "output.mp3"')
 
 
-client = vision.ImageAnnotatorClient()
-file_name = os.path.abspath("1.jpeg")
-with io.open(file_name, "rb") as image_file:
-    content = image_file.read()
+def lambda_handler(event, context):
+    # TODO implement
+    event["Image"]
+    image_bytes = base64.b64decode(event["Image"])
+    image_input = image_bytes.decode("asccii")
+    client = vision.ImageAnnotatorClient()
+    image = vision.Image(content=event["image_input"])
+    response = client.text_detection(image=image)
+    image_text = response.text_annotations
+    print("detected text : " + image_text[0].description.replace("\n", " "))
 
-image = vision.Image(content=content)
-response = client.text_detection(image=image)
-image_text = response.text_annotations
+    translated_text = detect_language(image_text[0].description.replace("\n", " "))
+    print("translated text : " + translated_text["translatedText"])
 
-print("detected text : " + image_text[0].description.replace("\n", " "))
-
-translated_text = detect_language(image_text[0].description.replace("\n", " "))
-print("translated text : " + translated_text["translatedText"])
-os.system("afplay output.mp3")
+    return {"statusCode": 200, "body": json.dumps(translated_text["translatedText"])}
