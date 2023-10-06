@@ -24,25 +24,30 @@ export default function App() {
       setHasPermission(status === "granted");
     })();
   }, []);
+  const convertImageToBase64 = async (uri) => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const reader = new FileReader();
+
+      return new Promise((resolve, reject) => {
+        reader.onload = () => {
+          resolve(reader.result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      throw new Error("이미지를 base64로 변환하는 중 오류가 발생했습니다.");
+    }
+  };
   const uploadImage = async (uri) => {
     try {
-      const formData = new FormData();
-      formData.append("image", {
-        uri,
-        type: "image/jpeg",
-        name: "photo.jpg",
-      });
-
+      const base64Image = await convertImageToBase64(uri);
+      const jsonData = JSON.stringify({ image: base64Image });
       const response = await fetch(
-        "https://4lps8uckm9.execute-api.ap-northeast-1.amazonaws.com/default/Image_Translator",
-        {
-          method: "POST",
-          body: formData,
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        "https://asia-northeast3-civil-icon-396606.cloudfunctions.net/Image_Translator",
+        JSON.parse(jsonData)
       );
 
       const data = await response.json();
@@ -56,20 +61,9 @@ export default function App() {
     console.log("사진 찍음");
     try {
       const { uri } = await cameraRef.current.takePictureAsync();
-      savePicture(uri);
       uploadImage(uri);
     } catch (error) {
       console.error("사진을 찍는 중 오류가 발생했습니다.", error);
-    }
-  };
-
-  const savePicture = async (uri) => {
-    try {
-      const asset = await MediaLibrary.createAssetAsync(uri);
-      await MediaLibrary.createAlbumAsync("Expo-Camera", asset, false);
-      console.log("사진이 기기에 저장되었습니다.");
-    } catch (error) {
-      console.error("사진을 저장하는 중 오류가 발생했습니다.", error);
     }
   };
 
@@ -97,8 +91,8 @@ export default function App() {
         <View style={styles.snapContainer}>
           <TouchableOpacity onPress={takePicture}>
             <Image
-              source={require("/Users/sim-yeongjun/Desktop/self_coding/Image_to_speech/MyApp/camera.png")} // 이미지 경로를 수정해주세요
-              style={styles.snapButtonImage} // 적절한 스타일을 지정해주세요
+              source={require("/Users/sim-yeongjun/Desktop/self_coding/Image_to_speech/MyApp/camera.png")}
+              style={styles.snapButtonImage}
             />
           </TouchableOpacity>
         </View>
@@ -161,7 +155,7 @@ const styles = StyleSheet.create({
   },
   responseText: {
     fontSize: 18,
-    color: "black", // 텍스트 색상
-    marginTop: 10, // 위쪽 간격 조정
+    color: "black",
+    marginTop: 10,
   },
 });
