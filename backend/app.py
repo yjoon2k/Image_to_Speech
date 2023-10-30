@@ -1,10 +1,11 @@
-import json
-import base64
+from flask import Flask, request, jsonify
 from google.cloud import vision
 from google.cloud import translate
 from google.cloud import texttospeech
 import io
 import os
+
+app = Flask(__name__)
 
 
 def translate_text(target: str, text: str) -> dict:
@@ -14,14 +15,12 @@ def translate_text(target: str, text: str) -> dict:
     if isinstance(text, bytes):
         text = text.decode("utf-8")
     result = translate_client.translate(text, target_language=target)
-
-    """print("Text: {}".format(result["input"]))
-    print("Translation: {}".format(result["translatedText"]))
-    print("Detected source language: {}".format(result["detectedSourceLanguage"]))"""
+    """
     if target == "ko":
         synthesize_text(result["translatedText"], "ko-KR")
     elif target == "en":
         synthesize_text(result["translatedText"], "en-US")
+    """
     return result
 
 
@@ -45,14 +44,8 @@ def detect_language(text):
 
 
 def synthesize_text(text, target):
-    """Synthesizes speech from the input string of text."""
-
     client = texttospeech.TextToSpeechClient()
-
     input_text = texttospeech.SynthesisInput(text=text)
-
-    # Note: the voice can also be specified by name.
-    # Names of voices can be retrieved with client.list_voices().
     voice = texttospeech.VoiceSelectionParams(
         language_code=target,
         name=target + "-Standard-C",
@@ -73,18 +66,29 @@ def synthesize_text(text, target):
         print('Audio content written to file "output.mp3"')
 
 
-def lambda_handler(event, context):
-    # TODO implement
-    event["Image"]
-    image_bytes = base64.b64decode(event["Image"])
-    image_input = image_bytes.decode("asccii")
+@app.route("/api/translate", methods=["POST"])
+def process_image():
+    # 클라이언트로부터 이미지를 받음
+    file = request.files["image"]
+    image_content = file.read()
+
+    # 이미지에서 텍스트를 추출
     client = vision.ImageAnnotatorClient()
-    image = vision.Image(content=event["image_input"])
+    image = vision.Image(content=image_content)
     response = client.text_detection(image=image)
     image_text = response.text_annotations
-    print("detected text : " + image_text[0].description.replace("\n", " "))
+    if len(image_text) == 0:
+        return "이미지에 아무런 텍스트가 없습니다."
 
+    # 추출한 텍스트를 번역
     translated_text = detect_language(image_text[0].description.replace("\n", " "))
-    print("translated text : " + translated_text["translatedText"])
 
-    return {"statusCode": 200, "body": json.dumps(translated_text["translatedText"])}
+    print(
+        image_text[0].description.replace("\n", " "), translated_text["translatedText"]
+    )
+
+    return translated_text["translatedText"]
+
+
+if __name__ == "__main__":
+    app.run("0.0.0.0", port=5000, debug=True)

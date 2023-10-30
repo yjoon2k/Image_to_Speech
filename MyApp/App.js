@@ -44,10 +44,15 @@ export default function App() {
   const uploadImage = async (uri) => {
     try {
       const base64Image = await convertImageToBase64(uri);
-      const jsonData = JSON.stringify({ image: base64Image });
       const response = await fetch(
         "https://asia-northeast3-civil-icon-396606.cloudfunctions.net/Image_Translator",
-        JSON.parse(jsonData)
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+          },
+          body: jsonData,
+        }
       );
 
       const data = await response.json();
