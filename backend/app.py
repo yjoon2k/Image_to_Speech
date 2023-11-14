@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from google.cloud import vision
 from google.cloud import translate
 from google.cloud import texttospeech
@@ -15,12 +15,12 @@ def translate_text(target: str, text: str) -> dict:
     if isinstance(text, bytes):
         text = text.decode("utf-8")
     result = translate_client.translate(text, target_language=target)
-    """
+
     if target == "ko":
         synthesize_text(result["translatedText"], "ko-KR")
     elif target == "en":
         synthesize_text(result["translatedText"], "en-US")
-    """
+
     return result
 
 
@@ -59,8 +59,6 @@ def synthesize_text(text, target):
     response = client.synthesize_speech(
         request={"input": input_text, "voice": voice, "audio_config": audio_config}
     )
-
-    # The response's audio_content is binary.
     with open("output.mp3", "wb") as out:
         out.write(response.audio_content)
         print('Audio content written to file "output.mp3"')
@@ -77,17 +75,22 @@ def process_image():
     image = vision.Image(content=image_content)
     response = client.text_detection(image=image)
     image_text = response.text_annotations
+    rs_text = ""
     if len(image_text) == 0:
-        return "이미지에 아무런 텍스트가 없습니다."
+        rs_text = "이미지에 아무런 텍스트가 없습니다."
+        synthesize_text(rs_text, "ko-KR")
+    else:
+        translated_text = detect_language(image_text[0].description.replace("\n", " "))
+        print(
+            image_text[0].description.replace("\n", " "),
+            translated_text["translatedText"],
+        )
+        rs_text = translated_text["translatedText"]
 
-    # 추출한 텍스트를 번역
-    translated_text = detect_language(image_text[0].description.replace("\n", " "))
+    with open("output.mp3", "rb") as f:
+        mp3_data = f.read()
 
-    print(
-        image_text[0].description.replace("\n", " "), translated_text["translatedText"]
-    )
-
-    return translated_text["translatedText"]
+    return jsonify({"text": rs_text, "mp3": mp3_data.decode("latin1")})
 
 
 if __name__ == "__main__":

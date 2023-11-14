@@ -24,40 +24,17 @@ export default function App() {
       setHasPermission(status === "granted");
     })();
   }, []);
-  const convertImageToBase64 = async (uri) => {
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const reader = new FileReader();
-
-      return new Promise((resolve, reject) => {
-        reader.onload = () => {
-          resolve(reader.result.split(",")[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      throw new Error("이미지를 base64로 변환하는 중 오류가 발생했습니다.");
-    }
-  };
   const uploadImage = async (uri) => {
+    const formData = new FormData();
+    formData.append("image", uri);
+    console.log("uploading");
     try {
-      const base64Image = await convertImageToBase64(uri);
-      const response = await fetch(
-        "https://asia-northeast3-civil-icon-396606.cloudfunctions.net/Image_Translator",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-          },
-          body: jsonData,
-        }
-      );
-
-      const data = await response.json();
-      setResponseText(data);
-      console.log("서버 응답:", data);
+      const response = await fetch("https://t-helper.aolda.net/api/translate", {
+        method: "POST",
+        body: formData,
+      });
+      const text = await response.text();
+      setResponseText(text);
     } catch (error) {
       console.error("이미지 업로드 중 오류가 발생했습니다.", error);
     }
@@ -66,7 +43,8 @@ export default function App() {
     console.log("사진 찍음");
     try {
       const { uri } = await cameraRef.current.takePictureAsync();
-      uploadImage(uri);
+      console.log(uri.type);
+      //uploadImage(uri);
     } catch (error) {
       console.error("사진을 찍는 중 오류가 발생했습니다.", error);
     }
